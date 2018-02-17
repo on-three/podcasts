@@ -17,6 +17,38 @@ def reassemble_program(rss):
   print feed[ "channel" ][ "title" ]
   print feed[ "channel" ][ "description" ]
 
+  #print feed[ 'channel' ]['item'][ 'media_content']
+
+  #print str(feed)
+
+  # sort channel entries, most recent first
+  entries = feed['entries']
+  sorted_entries = sorted(entries, key=lambda entry: entry["published_parsed"])
+  newest_entries = sorted(entries, key=lambda entry: entry["published_parsed"])
+  newest_entries.reverse() # for most recent entries first
+
+  #only take entries from the latest episode
+  today = newest_entries[0]['published_parsed']
+  print 'Aggregating segments for show from ' + str(today)
+
+  i = 0
+  for entry in sorted_entries:
+    date = entry['published_parsed']
+    #tm_year=2018, tm_mon=2, tm_mday=17
+    if date.tm_year != today.tm_year or date.tm_mon != today.tm_mon or date.tm_mday != today.tm_mday:
+      continue;
+  
+    print str(i) + '+++++++++++'
+    title = entry['title']
+    print title
+    
+    print str(date)
+    mp3 = entry['media_content'][0]['url']
+    #img = entry['media_content'][1]['url']
+    print 'mp3 ' + mp3
+    print '++++++++++++'
+    i = i + 1
+
   print 'Aggregation complete'
 
 """
