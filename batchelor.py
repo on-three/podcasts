@@ -125,7 +125,8 @@ def reassemble_program(rss, trim=False, force=False, out_dir='./', tmp_dir='/tmp
   i = 0
   tmp_files = []
   for f in files:
-    title = f['title']
+    # we want to do simple English TTS on titles, so make them simle ascii
+    title = f['title'].encode('ascii', errors='ignore')
     mp3 = f['media_content'][0]['url']
     #img = entry['media_content'][1]['url']
     i = i + 1
