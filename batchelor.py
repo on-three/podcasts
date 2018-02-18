@@ -9,7 +9,24 @@ import os.path
 import re
 import feedparser
 
-def reassemble_program(rss):
+
+def download_segment(name, url, force=False):
+  #does the file already exist? if so don't download again
+  if os.path.exists(name):
+    return True
+  call = 'wget -O "{name}" "{url}"'.format(name=name, url=url)
+  os.system(call)
+
+  if not os.path.exists(name):
+    return False
+
+  return True
+
+
+def aggregate_files(outfile, tmp_files, force=False):
+  print "aggregating files into " + outfile
+
+def reassemble_program(rss, out_dir='.', tmp_dir='/tmp'):
   """
   """
   print 'Aggregating episode at rss: ' + rss
@@ -31,23 +48,40 @@ def reassemble_program(rss):
   today = newest_entries[0]['published_parsed']
   print 'Aggregating segments for show from ' + str(today)
 
-  i = 0
+  files = []
   for entry in sorted_entries:
     date = entry['published_parsed']
     #tm_year=2018, tm_mon=2, tm_mday=17
     if date.tm_year != today.tm_year or date.tm_mon != today.tm_mon or date.tm_mday != today.tm_mday:
       continue;
   
+    files.append(entry)
+    
+  i = 0
+  tmp_files = []
+  basename = 'bachelor.' + str(today.tm_mon) + '.' + str(today.tm_mday) + '.' + str(today.tm_year)
+  for f in files:
+    date = f['published_parsed']
     print str(i) + '+++++++++++'
-    title = entry['title']
+    title = f['title']
     print title
     
     print str(date)
-    mp3 = entry['media_content'][0]['url']
+    mp3 = f['media_content'][0]['url']
     #img = entry['media_content'][1]['url']
     print 'mp3 ' + mp3
     print '++++++++++++'
     i = i + 1
+
+    # download the segment
+    tmp_file = tmp_dir + '/' + basename + '.' + str(i) + '.mp3'
+    download_segment(tmp_file, mp3)
+    tmp_files.append(tmp_file)
+
+  outfile = out_dir + '/' + basename + '.mp3' 
+
+  aggregate_files(outfile, tmp_files)
+
 
   print 'Aggregation complete'
 
