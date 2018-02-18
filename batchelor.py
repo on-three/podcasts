@@ -8,34 +8,48 @@ import argparse
 import os.path
 import re
 import feedparser
+from naturalreaders import do_tts
+
+SHOW_NAME='the.John.Batchelor.Show'
 
 
-def download_segment(name, url, trim=False, force=False):
+def download_segment(name, url, title, trim=False, intro=True, force=False):
   # does the file already exist? if so don't download again
   if os.path.exists(name):
     return True
 
-  initial_file = name + '.raw.mp3'
-
-  call = 'wget --tries=5 --user-agent="Mozilla/5.0 (X11; Fedora; Linux x86_64; rv:52.0) Gecko/20100101 Firefox/52.0" -O "{name}" "{url}"'.format(name=initial_file, url=url)
+  call = 'wget --tries=5 --user-agent="Mozilla/5.0 (X11; Fedora; Linux x86_64; rv:52.0) Gecko/20100101 Firefox/52.0" -O "{name}" "{url}"'.format(name=name, url=url)
   os.system(call)
 
-  if not os.path.exists(initial_file):
+  if not os.path.exists(name):
     return False
 
   if trim:
-    trimmed_name = name
-    c = 'ffmpeg -i {name} -y -ss {t} -vcodec copy -acodec copy {trimmed_name}'.format(t=60, name=initial_file, trimmed_name=trimmed_name)
+    raw_name = name + '.raw.mp3'
+    raw_cmd = 'mv {n} {r}'.format(n=name, r=raw_name)
+    os.system(raw_cmd)
+    c = 'ffmpeg -i {raw_name} -y -ss {t} -vcodec copy -acodec copy {name}'.format(t=60, raw_name=raw_name, name=name)
     print("*****" + c + "*******")
     os.system(c)
-  else:
-    c = 'mv {f} {to}'.format(f=initial_file, to=name)
-    os.system(c)
+
+  if intro:
+    raw_name = name + '.raw.mp3'
+    raw_cmd = 'mv {n} {r}'.format(n=name, r=raw_name)
+    os.system(raw_cmd)
+    desc_file = name + '.desc.mp3'
+    if not os.path.exists(desc_file):
+      do_tts(title, desc_file, voice='tim')
+
+    # concat the desc to the front of the raw file
+    #ffmpeg -i 'concat:input1|input2' -codec copy output
+    concat_cmd = 'ffmpeg -i \'concat:{f1}|{f2}\' -codec copy {name}'.format(f1=desc_file, f2=raw_name, name=name)
+    os.system(concat_cmd)
 
   return True
 
 
 def aggregate_files(outfile, tmp_files, force=False):
+  global SHOW_NAME
   print "aggregating files into " + outfile
   ## this is a comment
   #file '/path/to/file1'
@@ -87,7 +101,7 @@ def reassemble_program(rss, trim=False, out_dir='.', tmp_dir='/tmp'):
     
   i = 0
   tmp_files = []
-  basename = 'bachelor.' + str(today.tm_mon) + '.' + str(today.tm_mday) + '.' + str(today.tm_year)
+  basename = SHOW_NAME + '.' + str(today.tm_mon) + '.' + str(today.tm_mday) + '.' + str(today.tm_year)
   for f in files:
     date = f['published_parsed']
     print str(i) + '+++++++++++'
@@ -103,7 +117,7 @@ def reassemble_program(rss, trim=False, out_dir='.', tmp_dir='/tmp'):
 
     # download the segment
     tmp_file = tmp_dir + '/' + basename + '.' + str(i) + '.mp3'
-    download_segment(tmp_file, mp3, trim=trim)
+    download_segment(tmp_file, mp3, title, trim=trim)
     tmp_files.append(tmp_file)
 
   outfile = out_dir + '/' + basename + '.mp3' 
