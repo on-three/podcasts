@@ -9,9 +9,9 @@ import os.path
 import re
 import feedparser
 from naturalreaders import do_tts
+from mutagen.mp3 import MP3
 
 SHOW_NAME='the.John.Batchelor.Show'
-
 
 class SimpleDate(object):
   def __init__(self, date_string):
@@ -20,6 +20,10 @@ class SimpleDate(object):
     self.tm_mday = int(d[1])
     self.tm_year = int(d[2])
     
+def get_runnning_time_seconds(filename):
+  audio = MP3(filename)
+  return int(audio.info.length)
+
 
 def download_segment(name, url, title, trim=False, intro=True, force=False):
   # does the file already exist? if so don't download again
@@ -37,10 +41,19 @@ def download_segment(name, url, title, trim=False, intro=True, force=False):
     return False
 
   if trim:
+    COMMERCIAL_LENGTH = 60
+    # we want to trim a second from the start and end of the file
+    # but to do that ffmpeg needs the entire running time (piece of shit)
+    length_s = get_runnning_time_seconds(name)
+    print("Length of file {f} found to be {s}".format(f=name, s=length_s))
+    trimmed_length = length_s - COMMERCIAL_LENGTH * 2 
+
     raw_name = name + '.raw.mp3'
     raw_cmd = 'mv {n} {r}'.format(n=name, r=raw_name)
     os.system(raw_cmd)
-    c = 'ffmpeg -i {raw_name} -y -ss {t} -vcodec copy -acodec copy {name}'.format(t=60, raw_name=raw_name, name=name)
+    
+    c = 'ffmpeg -i {raw_name} -y -ss {t} -t {l} -vcodec copy -acodec copy {name}'.format(t=COMMERCIAL_LENGTH, l=trimmed_length, raw_name=raw_name, name=name)
+    print "+++++++" + c + "+++++++"
     os.system(c)
 
   if intro:
