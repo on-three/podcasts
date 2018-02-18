@@ -10,15 +10,27 @@ import re
 import feedparser
 
 
-def download_segment(name, url, force=False):
-  #does the file already exist? if so don't download again
+def download_segment(name, url, trim=False, force=False):
+  # does the file already exist? if so don't download again
   if os.path.exists(name):
     return True
-  call = 'wget -O "{name}" "{url}"'.format(name=name, url=url)
+
+  initial_file = name + '.raw.mp3'
+
+  call = 'wget --tries=5 --user-agent="Mozilla/5.0 (X11; Fedora; Linux x86_64; rv:52.0) Gecko/20100101 Firefox/52.0" -O "{name}" "{url}"'.format(name=initial_file, url=url)
   os.system(call)
 
-  if not os.path.exists(name):
+  if not os.path.exists(initial_file):
     return False
+
+  if trim:
+    trimmed_name = name
+    c = 'ffmpeg -i {name} -y -ss {t} -vcodec copy -acodec copy {trimmed_name}'.format(t=60, name=initial_file, trimmed_name=trimmed_name)
+    print("*****" + c + "*******")
+    os.system(c)
+  else:
+    c = 'mv {f} {to}'.format(f=initial_file, to=name)
+    os.system(c)
 
   return True
 
@@ -35,11 +47,10 @@ def aggregate_files(outfile, tmp_files, force=False):
     f.write('file {filename}\n'.format(filename=l))
   f.close()
 
-  call = 'ffmpeg -f concat -safe 0 -i {f} -c copy {outfile}'.format(f=listfile, outfile=outfile)
+  call = 'ffmpeg -y -f concat -safe 0 -i {f} -c copy {outfile}'.format(f=listfile, outfile=outfile)
   os.system(call)
 
-
-def reassemble_program(rss, out_dir='.', tmp_dir='/tmp'):
+def reassemble_program(rss, trim=False, out_dir='.', tmp_dir='/tmp'):
   """
   """
   print 'Aggregating episode at rss: ' + rss
@@ -60,6 +71,10 @@ def reassemble_program(rss, out_dir='.', tmp_dir='/tmp'):
   #only take entries from the latest episode
   today = newest_entries[0]['published_parsed']
   print 'Aggregating segments for show from ' + str(today)
+
+  if len(newest_entries) < 1:
+    print("**** couldn't find any entries in rss feed.")
+    return
 
   files = []
   for entry in sorted_entries:
@@ -88,7 +103,7 @@ def reassemble_program(rss, out_dir='.', tmp_dir='/tmp'):
 
     # download the segment
     tmp_file = tmp_dir + '/' + basename + '.' + str(i) + '.mp3'
-    download_segment(tmp_file, mp3)
+    download_segment(tmp_file, mp3, trim=trim)
     tmp_files.append(tmp_file)
 
   outfile = out_dir + '/' + basename + '.mp3' 
@@ -104,7 +119,7 @@ def reassemble_program(rss, out_dir='.', tmp_dir='/tmp'):
 def main():
   parser = argparse.ArgumentParser(description='Reassemble John Batchelor episode from RSS feed.')
   parser.add_argument('--rss', action="store", default="https://audioboom.com/channels/4002274.rss")
-  #parser.add_argument('--tts', action="store_true", default=False)
+  parser.add_argument('-t', '--trim', action="store_true", default=True, help='trim one minute from front end of all segments.')
   #parser.add_argument('--phonemes', action="store_true", default=False)
   #parser.add_argument('--videos', action="store_true", default=False)
   parser.add_argument('-o', '--outdir', type=str, default='./tmp/')
@@ -113,13 +128,14 @@ def main():
   #print(" in dir: {dir}".format(dir=args.outdir))
 
   rss = args.rss
+  trim = args.trim
 
   #infile = args.infile
   #if not os.path.isfile(infile):
   #  print("File: " + infile + " not found.")
   #  return -1
 
-  reassemble_program(rss)
+  reassemble_program(rss, trim=trim)
 
 
 
