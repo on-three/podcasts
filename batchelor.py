@@ -25,6 +25,19 @@ def download_segment(name, url, force=False):
 
 def aggregate_files(outfile, tmp_files, force=False):
   print "aggregating files into " + outfile
+  ## this is a comment
+  #file '/path/to/file1'
+  #file '/path/to/file2'
+  #file '/path/to/file3'
+  listfile = '/tmp/concatenate.txt'
+  f = open(listfile, 'w+')
+  for l in tmp_files:
+    f.write('file {filename}\n'.format(filename=l))
+  f.close()
+
+  call = 'ffmpeg -f concat -safe 0 -i {f} -c copy {outfile}'.format(f=listfile, outfile=outfile)
+  os.system(call)
+
 
 def reassemble_program(rss, out_dir='.', tmp_dir='/tmp'):
   """
