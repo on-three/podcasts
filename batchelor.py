@@ -66,7 +66,7 @@ def download_segment(name, url, title, trim=43, intro=True, force=False):
 
     # concat the desc to the front of the raw file
     #ffmpeg -i 'concat:input1|input2' -codec copy output
-    concat_cmd = 'ffmpeg -i \'concat:{f1}|{f2}\' -codec copy {name}'.format(f1=desc_file, f2=raw_name, name=name)
+    concat_cmd = 'ffmpeg -i \'concat:{f1}|{f2}\' -ar 44100 {name}'.format(f1=desc_file, f2=raw_name, name=name)
     os.system(concat_cmd)
 
   return True
