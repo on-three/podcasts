@@ -8,7 +8,8 @@ import argparse
 import os.path
 import re
 import feedparser
-from naturalreaders import do_tts
+#from naturalreaders import do_tts
+from gtts import gTTS
 from mutagen.mp3 import MP3
 
 SHOW_NAME='the.John.Batchelor.Show'
@@ -24,6 +25,9 @@ def get_runnning_time_seconds(filename):
   audio = MP3(filename)
   return int(audio.info.length)
 
+def do_tts(text, outfile, voice="darren", speed=""):
+  tts = gTTS(text)
+  tts.save(outfile)
 
 def download_segment(name, url, title, trim=43, intro=True, force=False):
   # does the file already exist? if so don't download again
@@ -88,7 +92,7 @@ def aggregate_files(outfile, tmp_files, force=False):
   call = 'ffmpeg -y -f concat -safe 0 -i {f} -c copy {outfile}'.format(f=listfile, outfile=outfile)
   os.system(call)
 
-def reassemble_program(rss, trim=43, force=False, out_dir='./', tmp_dir='/tmp', date=None):
+def reassemble_program(rss, trim=0, force=False, out_dir='./', tmp_dir='/tmp', date=None):
   """
   """
   print 'Aggregating episode at rss: ' + rss
@@ -163,7 +167,7 @@ def reassemble_program(rss, trim=43, force=False, out_dir='./', tmp_dir='/tmp', 
 def main():
   parser = argparse.ArgumentParser(description='Reassemble John Batchelor episode from RSS feed.')
   parser.add_argument('--rss', action="store", default="https://audioboom.com/channels/4002274.rss")
-  parser.add_argument('-t', '--trim', type=int, default=43, help='trim n seconds from the front end back of each segment.')
+  parser.add_argument('-t', '--trim', type=int, default=0, help='trim n seconds from the front end back of each segment.')
   parser.add_argument('--force', action="store_true", default=False, help='Force redownload and reconstruction of entire file.')
   parser.add_argument('-o', '--outdir', type=str, default='./', help='Directory to put final reconstructed file.')
   parser.add_argument('--tmpdir', type=str, default='/tmp', help='Directory used for temporary work files.')
