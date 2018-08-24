@@ -97,8 +97,8 @@ def reassemble_program(rss, trim=0, force=False, out_dir='./', tmp_dir='/tmp', d
   """
   print 'Aggregating episode at rss: ' + rss
   feed = feedparser.parse( rss )
-  print feed[ "channel" ][ "title" ]
-  print feed[ "channel" ][ "description" ]
+  #print feed[ "channel" ][ "title" ]
+  #print feed[ "channel" ][ "description" ]
   
   # DEBUG
   #print str(feed)
