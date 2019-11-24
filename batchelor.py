@@ -14,6 +14,62 @@ from mutagen.mp3 import MP3
 
 SHOW_NAME='the.John.Batchelor.Show'
 
+def get_audio_length_ms(path):
+  audio = MP3(path)
+  return int(audio.info.length * 1000)
+
+class Chapter(object):
+  def __init__(self, title, length):
+    self._title = title
+    self._length = length
+
+class Metadata(object):
+  def __init__(self, path, title):
+    self._path = path
+    self._title = title
+    self._chapters = []
+
+  def add_chapter(self, title, length):
+    self._chapters.append(Chapter(title, length))
+
+  def write(self):
+    r'''
+    Metadata
+    see: https://ffmpeg.org/ffmpeg-formats.html#Metadata-1
+    ;FFMETADATA1
+    title=bike\\shed
+    ;this is a comment
+    artist=FFmpeg troll team
+
+    [CHAPTER]
+    TIMEBASE=1/1000
+    START=0
+    #chapter ends at 0:01:00
+    END=60000
+    title=chapter \#1
+    [STREAM]
+    title=multi\
+    line
+    '''
+    start = 0
+    end = 0
+    with open(self._path, 'w') as f:
+      f.write(";FFMETADATA1\n")
+      f.write("title={title}\n".format(title=self._title))
+      f.write("\n")
+      for c in self._chapters:
+        end = int(start + c._length)
+        f.write("[CHAPTER]\n")
+        f.write("TIMEBASE=1/1000\n")
+        f.write("START={start}\n".format(start=start))
+        f.write("END={end}\n".format(end=end))
+        f.write("title={title}\n".format(title=c._title))
+        f.write("\n")
+        start = end
+
+  def get_path(self):
+    return self._path
+
 class SimpleDate(object):
   def __init__(self, date_string):
     d = date_string.split(':')
@@ -76,7 +132,7 @@ def download_segment(name, url, title, trim=43, intro=True, force=False):
   return True
 
 
-def aggregate_files(outfile, tmp_files, force=False):
+def aggregate_files(outfile, tmp_files, metadata, force=False):
   global SHOW_NAME
   print "aggregating files into " + outfile
   ## this is a comment
@@ -89,7 +145,14 @@ def aggregate_files(outfile, tmp_files, force=False):
     f.write('file {filename}\n'.format(filename=l))
   f.close()
 
-  call = 'ffmpeg -y -f concat -safe 0 -i {f} -c copy {outfile}'.format(f=listfile, outfile=outfile)
+  metadata.write()
+  aggregate_file = '/tmp/aggregate.mp3'
+  call = 'ffmpeg -y -f concat -safe 0 -i {f} -c copy {outfile}'.format(f=listfile, outfile=aggregate_file)
+  os.system(call)
+
+  # apply metadata to final file
+  # ffmpeg -i INPUT -i FFMETADATAFILE -map_metadata 1 -codec copy OUTPUT
+  call = 'ffmpeg -i {f} -i {metadata} -map_metadata 1 -c copy {outfile}'.format(f=aggregate_file, outfile=outfile, metadata=metadata.get_path())
   os.system(call)
 
 def reassemble_program(rss, trim=0, force=False, out_dir='./', tmp_dir='/tmp', date=None):
@@ -97,11 +160,6 @@ def reassemble_program(rss, trim=0, force=False, out_dir='./', tmp_dir='/tmp', d
   """
   print 'Aggregating episode at rss: ' + rss
   feed = feedparser.parse( rss )
-  #print feed[ "channel" ][ "title" ]
-  #print feed[ "channel" ][ "description" ]
-  
-  # DEBUG
-  #print str(feed)
 
   # sort channel entries, most recent first
   entries = feed['entries']
@@ -131,13 +189,18 @@ def reassemble_program(rss, trim=0, force=False, out_dir='./', tmp_dir='/tmp', d
     _date = entry['published_parsed']
     #tm_year=2018, tm_mon=2, tm_mday=17
     if _date.tm_year != today.tm_year or _date.tm_mon != today.tm_mon or _date.tm_mday != today.tm_mday:
-      continue;
+      continue
   
     files.append(entry)
 
   if len(files) == 0:
     print("Could not find any rss entries for indicated date. Bailing.")
     return
+
+  # Record metadata as we go for chapter titles and stops
+  metadata_tmp_file = tmp_dir + '/' + basename + '.metadata'
+  metadata_title = basename
+  metadata = Metadata(metadata_tmp_file, metadata_title)
     
   i = 0
   tmp_files = []
@@ -153,16 +216,17 @@ def reassemble_program(rss, trim=0, force=False, out_dir='./', tmp_dir='/tmp', d
     if not download_segment(tmp_file, mp3, title, trim=trim, force=force):
       print("Downloading segment " + tmp_file + " at url: " + mp3 + " failed for some reason. Bailing.")
       return False
+
+    # we need the length of each tmp file for chapters
+    length = int(get_audio_length_ms(tmp_file))
+    print("--> length of auto file: {f} is {length}".format(f=tmp_file, length=length))
+    metadata.add_chapter(title, length)
     tmp_files.append(tmp_file)
 
-
-  aggregate_files(outfile, tmp_files)
-
+  aggregate_files(outfile, tmp_files, metadata)
 
   print 'Aggregation complete'
 
-"""
-"""
 
 def main():
   parser = argparse.ArgumentParser(description='Reassemble John Batchelor episode from RSS feed.')
@@ -191,8 +255,6 @@ def main():
       print 'Will attempt to reconstruct show for date: ' + date
 
   reassemble_program(rss, out_dir=out_dir, tmp_dir=tmp_dir, trim=trim, force=force, date=date)
-
-
 
 if __name__ == '__main__':
   main()
