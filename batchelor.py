@@ -112,7 +112,7 @@ def download_segment(name, url, title, trim=43, intro=True, force=False):
     raw_cmd = 'mv {n} {r}'.format(n=name, r=raw_name)
     os.system(raw_cmd)
     
-    c = 'ffmpeg -i {raw_name} -y -ss {t} -t {l} -vcodec copy -acodec copy {name}'.format(t=COMMERCIAL_LENGTH, l=trimmed_length, raw_name=raw_name, name=name)
+    c = 'ffmpeg -i {raw_name} -loglevel panic -y -ss {t} -t {l} -vcodec copy -acodec copy {name}'.format(t=COMMERCIAL_LENGTH, l=trimmed_length, raw_name=raw_name, name=name)
     print "+++++++" + c + "+++++++"
     os.system(c)
 
@@ -126,7 +126,7 @@ def download_segment(name, url, title, trim=43, intro=True, force=False):
 
     # concat the desc to the front of the raw file
     #ffmpeg -i 'concat:input1|input2' -codec copy output
-    concat_cmd = 'ffmpeg -i \'concat:{f1}|{f2}\' -ar 44100 {name}'.format(f1=desc_file, f2=raw_name, name=name)
+    concat_cmd = 'ffmpeg -i \'concat:{f1}|{f2}\' -loglevel panic -ar 44100 {name}'.format(f1=desc_file, f2=raw_name, name=name)
     os.system(concat_cmd)
 
   return True
@@ -219,7 +219,7 @@ def reassemble_program(rss, trim=0, force=False, out_dir='./', tmp_dir='/tmp', d
 
     # we need the length of each tmp file for chapters
     length = int(get_audio_length_ms(tmp_file))
-    print("--> length of auto file: {f} is {length}".format(f=tmp_file, length=length))
+    print("--> length of audio file number {i}: {f} is {length} with title {title}".format(i=i, f=tmp_file, length=length, title=title))
     metadata.add_chapter(title, length)
     tmp_files.append(tmp_file)
 
