@@ -152,7 +152,7 @@ def aggregate_files(outfile, tmp_files, metadata, force=False):
 
   # apply metadata to final file
   # ffmpeg -i INPUT -i FFMETADATAFILE -map_metadata 1 -codec copy OUTPUT
-  call = 'ffmpeg -i {f} -i {metadata} -map_metadata 1 -c copy {outfile}'.format(f=aggregate_file, outfile=outfile, metadata=metadata.get_path())
+  call = 'ffmpeg -y -i {f} -i {metadata} -map_metadata 1 -c copy {outfile}'.format(f=aggregate_file, outfile=outfile, metadata=metadata.get_path())
   os.system(call)
 
 def reassemble_program(rss, trim=0, force=False, out_dir='./', tmp_dir='/tmp', date=None):
